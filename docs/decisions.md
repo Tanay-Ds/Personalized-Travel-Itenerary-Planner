@@ -1,0 +1,1 @@
+- JWT verification: Supabase signing keys (ES256) verified via JWKS endpoint; legacy JWT secret not used.
