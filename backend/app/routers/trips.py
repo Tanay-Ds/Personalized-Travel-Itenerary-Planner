@@ -75,3 +75,22 @@ def regenerate_day(
 ):
     generation_service.regenerate_day(db, str(trip_id), day_number)
     return trip_service.get_trip_detail(db, str(trip_id))
+    
+
+from pydantic import BaseModel
+
+
+class ReorderIn(BaseModel):
+    activity_ids: list[str]
+
+
+@router.post("/{trip_id}/days/{day_number}/reorder", response_model=TripDetailOut)
+def reorder_day(
+    trip_id: UUID,
+    day_number: int,
+    payload: ReorderIn,
+    user: AuthUser = Depends(get_current_user),
+    db: Client = Depends(get_user_supabase),
+):
+    trip_service.reorder_day(db, str(trip_id), day_number, payload.activity_ids)
+    return trip_service.get_trip_detail(db, str(trip_id))

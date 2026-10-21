@@ -99,4 +99,16 @@ def update_trip(db: Client, trip_id: str, payload: TripUpdate) -> TripOut:
 def delete_trip(db: Client, trip_id: str) -> None:
     if not trip_repo.delete_trip(db, trip_id):
         raise HTTPException(status_code=404, detail="Trip not found or you are not the owner")
+        
+
+def reorder_day(db: Client, trip_id: str, day_number: int, activity_ids: list[str]) -> None:
+    days_raw = trip_repo.get_days_with_activities(db, trip_id)
+    day = next((d for d in days_raw if d["day_number"] == day_number), None)
+    if day is None:
+        raise HTTPException(status_code=404, detail="Day not found")
+    existing = {a["id"] for a in (day.get("activities") or [])}
+    if len(activity_ids) != len(existing) or set(activity_ids) != existing:
+        raise HTTPException(status_code=422, detail="Activity list does not match this day")
+    for pos, activity_id in enumerate(activity_ids):
+        db.table("activities").update({"position": pos}).eq("id", activity_id).execute()
     
