@@ -16,3 +16,8 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# documentation drafts & submission pdfs (kept local until finalized)
+/[0-9].*/
+/scripts/
+*.pdf
