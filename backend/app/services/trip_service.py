@@ -106,9 +106,16 @@ def reorder_day(db: Client, trip_id: str, day_number: int, activity_ids: list[st
     day = next((d for d in days_raw if d["day_number"] == day_number), None)
     if day is None:
         raise HTTPException(status_code=404, detail="Day not found")
-    existing = {a["id"] for a in (day.get("activities") or [])}
+    acts = day.get("activities") or []
+    existing = {a["id"] for a in acts}
     if len(activity_ids) != len(existing) or set(activity_ids) != existing:
         raise HTTPException(status_code=422, detail="Activity list does not match this day")
+    slots = sorted(
+        [(a.get("start_time"), a.get("end_time")) for a in acts],
+        key=lambda s: str(s[0] or ""),
+    )
     for pos, activity_id in enumerate(activity_ids):
-        db.table("activities").update({"position": pos}).eq("id", activity_id).execute()
-    
+        start, end = slots[pos]
+        db.table("activities").update(
+            {"position": pos, "start_time": start, "end_time": end}
+        ).eq("id", activity_id).execute()

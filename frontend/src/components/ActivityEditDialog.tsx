@@ -15,6 +15,8 @@ type Props = {
 
 const TYPES = ['attraction', 'meal', 'stay', 'transport', 'other']
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : '')
+const fieldClass = 'bg-white'
+const labelClass = 'mb-1 block text-sky-900'
 
 export default function ActivityEditDialog({ activity, tripId, onClose }: Props) {
     const queryClient = useQueryClient()
@@ -65,20 +67,20 @@ export default function ActivityEditDialog({ activity, tripId, onClose }: Props)
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit activity</DialogTitle>
+                    <DialogTitle>✈ Edit activity</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-3">
                     <div>
-                        <Label htmlFor="act-title">Title</Label>
-                        <Input id="act-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <Label htmlFor="act-title" className={labelClass}>Title</Label>
+                        <Input id="act-title" className={fieldClass} value={title} onChange={(e) => setTitle(e.target.value)} />
                     </div>
 
                     <div>
-                        <Label htmlFor="act-type">Type</Label>
+                        <Label htmlFor="act-type" className={labelClass}>Type</Label>
                         <select
                             id="act-type"
-                            className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                            className="h-9 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             value={type}
                             onChange={(e) => setType(e.target.value)}
                         >
@@ -92,38 +94,44 @@ export default function ActivityEditDialog({ activity, tripId, onClose }: Props)
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <Label htmlFor="act-start">Start time</Label>
-                            <Input id="act-start" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                            <Label htmlFor="act-start" className={labelClass}>Start time</Label>
+                            <Input id="act-start" className={fieldClass} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
                         </div>
                         <div>
-                            <Label htmlFor="act-end">End time</Label>
-                            <Input id="act-end" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                            <Label htmlFor="act-end" className={labelClass}>End time</Label>
+                            <Input id="act-end" className={fieldClass} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
                         </div>
                     </div>
 
                     <div>
-                        <Label htmlFor="act-cost">Estimated cost</Label>
-                        <Input id="act-cost" type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} />
+                        <Label htmlFor="act-cost" className={labelClass}>Estimated cost</Label>
+                        <Input id="act-cost" className={fieldClass} type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} />
                     </div>
 
                     <div>
-                        <Label htmlFor="act-location">Location</Label>
-                        <Input id="act-location" value={location} onChange={(e) => setLocation(e.target.value)} />
+                        <Label htmlFor="act-location" className={labelClass}>Location</Label>
+                        <Input id="act-location" className={fieldClass} value={location} onChange={(e) => setLocation(e.target.value)} />
                     </div>
 
                     <div>
-                        <Label htmlFor="act-desc">Description</Label>
-                        <Input id="act-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+                        <Label htmlFor="act-desc" className={labelClass}>Description</Label>
+                        <Input id="act-desc" className={fieldClass} value={description} onChange={(e) => setDescription(e.target.value)} />
                     </div>
 
-                    {formError && <p className="text-sm text-red-600">{formError}</p>}
+                    {formError && (
+                        <p className="rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">{formError}</p>
+                    )}
                 </div>
 
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSave} disabled={mutation.isPending}>
+                    <Button
+                        className="bg-orange-500 text-white hover:bg-orange-600"
+                        onClick={handleSave}
+                        disabled={mutation.isPending}
+                    >
                         {mutation.isPending ? 'Saving...' : 'Save'}
                     </Button>
                 </DialogFooter>

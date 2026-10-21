@@ -2,6 +2,7 @@ import json
 import os
 from datetime import date, time, timedelta
 from pathlib import Path
+from time import sleep
 
 import httpx
 from fastapi import HTTPException
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 ALLOWED_TYPES = {"attraction", "meal", "stay", "transport", "other"}
+RETRY_STATUS = {429, 500, 503, 504}
 
 
 def _env(name: str, default: str = "") -> str:
@@ -26,6 +28,7 @@ def _env(name: str, default: str = "") -> str:
                 return val.strip().strip('"').strip("'") or default
     return default
 
+    
 
 class GenActivity(BaseModel):
     type: str = "other"
@@ -89,6 +92,7 @@ class GenItinerary(BaseModel):
     days: list[GenDay] = Field(min_length=1)
 
 
+
 def _build_prompt(trip: dict, num_days: int, only_day: int | None = None) -> str:
     interests = ", ".join(trip.get("interests") or []) or "general sightseeing"
     return f"""You are a travel planner. Create a {num_days}-day itinerary.
@@ -128,10 +132,18 @@ def _call_gemini(prompt: str) -> str:
             "maxOutputTokens": 8192,
         },
     }
-    try:
-        res = httpx.post(url, json=body, headers={"x-goog-api-key": key}, timeout=90)
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"AI request failed: {e}")
+    res = None
+    for attempt in range(3):
+        try:
+            res = httpx.post(url, json=body, headers={"x-goog-api-key": key}, timeout=90)
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=502, detail=f"AI request failed: {e}")
+        if res.status_code == 200:
+            break
+        if res.status_code in RETRY_STATUS and attempt < 2:
+            sleep(2)
+            continue
+        break
     if res.status_code != 200:
         raise HTTPException(
             status_code=502, detail=f"AI provider error {res.status_code}: {res.text[:300]}"
@@ -142,13 +154,53 @@ def _call_gemini(prompt: str) -> str:
     except (KeyError, IndexError):
         raise ValueError("AI returned no text")
 
+    
+
+def _call_groq(prompt: str) -> str:
+    key = _env("GROQ_API_KEY")
+    if not key:
+        raise HTTPException(status_code=502, detail="Gemini failed and GROQ_API_KEY is not set")
+    model = _env("GROQ_MODEL", "llama-3.3-70b-versatile")
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.7,
+    }
+    try:
+        res = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json=body,
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=60,
+        )
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Groq request failed: {e}")
+    if res.status_code != 200:
+        raise HTTPException(
+            status_code=502, detail=f"Groq error {res.status_code}: {res.text[:300]}"
+        )
+    try:
+        return res.json()["choices"][0]["message"]["content"]
+    except (KeyError, IndexError):
+        raise ValueError("Groq returned no text")
+
 
 def _call_llm(prompt: str) -> str:
     provider = _env("LLM_PROVIDER", "gemini").lower()
+    if provider == "groq":
+        return _call_groq(prompt)
     if provider == "gemini":
-        return _call_gemini(prompt)
+        try:
+            return _call_gemini(prompt)
+        except HTTPException:
+            # Gemini failed even after 3 tries: use Groq if a key exists.
+            if _env("GROQ_API_KEY"):
+                return _call_groq(prompt)
+            raise
     raise HTTPException(status_code=500, detail=f"Unsupported LLM_PROVIDER: {provider}")
 
+    
 
 def generate_itinerary(trip: dict, num_days: int) -> GenItinerary:
     """Calls the LLM, validates the JSON, retries once on bad output."""
@@ -170,7 +222,7 @@ def generate_itinerary(trip: dict, num_days: int) -> GenItinerary:
     raise HTTPException(
         status_code=502, detail=f"AI returned invalid itinerary twice: {last_error}"
     )
-    
+
 
 def _build_day_prompt(
     trip: dict, day_number: int, num_days: int, avoid_titles: list[str]
