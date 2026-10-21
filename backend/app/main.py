@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
-from app.routers import health, me, trips
+from app.routers import activities, health, me, trips
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +47,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(health.router, prefix="/api")
 app.include_router(me.router, prefix="/api")
 app.include_router(trips.router, prefix="/api")
+app.include_router(activities.router, prefix="/api")
 from fastapi.responses import RedirectResponse
 
 

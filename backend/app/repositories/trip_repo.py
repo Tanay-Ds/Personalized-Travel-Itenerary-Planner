@@ -48,3 +48,27 @@ def get_days_for_trips(db: Client, trip_ids: list[str]) -> list[dict]:
         .execute()
     )
     return res.data
+    
+
+def get_activity(db: Client, activity_id: str) -> dict | None:
+    res = db.table("activities").select("*").eq("id", activity_id).execute()
+    return res.data[0] if res.data else None
+
+
+def update_activity(db: Client, activity_id: str, data: dict) -> dict | None:
+    res = db.table("activities").update(data).eq("id", activity_id).execute()
+    return res.data[0] if res.data else None
+
+
+def delete_activity(db: Client, activity_id: str) -> bool:
+    res = db.table("activities").delete().eq("id", activity_id).execute()
+    return len(res.data) > 0
+
+
+def get_activities_for_day(db: Client, day_id: str) -> list[dict]:
+    res = db.table("activities").select("estimated_cost").eq("day_id", day_id).execute()
+    return res.data
+
+
+def update_day_cost(db: Client, day_id: str, cost: float) -> None:
+    db.table("itinerary_days").update({"estimated_cost": cost}).eq("id", day_id).execute()

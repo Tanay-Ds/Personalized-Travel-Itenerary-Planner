@@ -6,7 +6,7 @@ from supabase import Client
 from app.core.security import AuthUser, get_current_user
 from app.core.supabase import get_user_supabase
 from app.schemas.trip import TripCreate, TripDetailOut, TripOut, TripUpdate
-from app.services import trip_service
+from app.services import generation_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -55,3 +55,23 @@ def delete_trip(
 ):
     trip_service.delete_trip(db, str(trip_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/generate", response_model=TripDetailOut, status_code=status.HTTP_201_CREATED)
+def generate_trip(
+    payload: TripCreate,
+    user: AuthUser = Depends(get_current_user),
+    db: Client = Depends(get_user_supabase),
+):
+    # Synchronous on purpose (prototype mode): takes roughly 10-20 seconds.
+    trip_id = generation_service.generate_trip(db, user.id, payload)
+    return trip_service.get_trip_detail(db, trip_id)
+    
+
+@router.post("/{trip_id}/days/{day_number}/regenerate", response_model=TripDetailOut)
+def regenerate_day(
+    trip_id: UUID,
+    day_number: int,
+    user: AuthUser = Depends(get_current_user),
+    db: Client = Depends(get_user_supabase),
+):
+    generation_service.regenerate_day(db, str(trip_id), day_number)
+    return trip_service.get_trip_detail(db, str(trip_id))
